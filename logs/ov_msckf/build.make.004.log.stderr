@@ -1,0 +1,59 @@
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K In lambda function:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:487:30:[m[K [01;31m[Kerror: [m[K‘[01m[Kcurr_time[m[K’ was not declared in this scope
+           double time_diff = [01;31m[Kcurr_time[m[K - last_kf_time;
+                              [01;31m[K^~~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:487:30:[m[K [01;36m[Knote: [m[Ksuggested alternative: ‘[01m[Kctime[m[K’
+           double time_diff = [01;36m[Kcurr_time[m[K - last_kf_time;
+                              [01;36m[K^~~~~~~~~[m[K
+                              [32m[Kctime[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:487:42:[m[K [01;31m[Kerror: [m[K‘[01m[Klast_kf_time[m[K’ was not declared in this scope
+           double time_diff = curr_time - [01;31m[Klast_kf_time[m[K;
+                                          [01;31m[K^~~~~~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:487:42:[m[K [01;36m[Knote: [m[Ksuggested alternative: ‘[01m[Klast_kf_pos[m[K’
+           double time_diff = curr_time - [01;36m[Klast_kf_time[m[K;
+                                          [01;36m[K^~~~~~~~~~~~[m[K
+                                          [32m[Klast_kf_pos[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:513:13:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K}[m[K’ before ‘[01m[Kelse[m[K’
+             [01;31m[Kelse[m[K
+             [01;31m[K^~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:479:16:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Kupdate_dt[m[K’ [[01;35m[K-Wunused-variable[m[K]
+         double [01;35m[Kupdate_dt[m[K = 100.0 * (timestamp_imu_inC - camera_queue.at(0).timestamp);
+                [01;35m[K^~~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:520:38:[m[K [01;31m[Kerror: [m[K‘[01m[KrT0_1[m[K’ was not declared in this scope
+         double time_total = (rT0_2 - [01;31m[KrT0_1[m[K).total_microseconds() * 1e-6;
+                                      [01;31m[K^~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:520:38:[m[K [01;36m[Knote: [m[Ksuggested alternative: ‘[01m[KrT0_2[m[K’
+         double time_total = (rT0_2 - [01;36m[KrT0_1[m[K).total_microseconds() * 1e-6;
+                                      [01;36m[K^~~~~[m[K
+                                      [32m[KrT0_2[m[K
+In file included from [01m[K/root/workspace/src/open_vins/ov_core/src/utils/opencv_yaml_parse.h:37:0[m[K,
+                 from [01m[K/root/workspace/src/open_vins/ov_msckf/src/state/StateOptions.h:26[m[K,
+                 from [01m[K/root/workspace/src/open_vins/ov_msckf/src/core/VioManagerOptions.h:32[m[K,
+                 from [01m[K/root/workspace/src/open_vins/ov_msckf/src/core/VioManager.h:34[m[K,
+                 from [01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:24[m[K:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:521:119:[m[K [01;31m[Kerror: [m[K‘[01m[Kupdate_dt[m[K’ was not declared in this scope
+         PRINT_INFO(BLUE "[TIME]: %.4f seconds total (%.1f hz, %.2f ms behind)\n" RESET, time_total, 1.0 / time_total, [01;31m[Ku[m[Kpdate_dt);
+                                                                                                                       [01;31m[K^[m[K
+[01m[K/root/workspace/src/open_vins/ov_core/src/utils/print.h:98:121:[m[K [01;36m[Knote: [m[Kin definition of macro ‘[01m[KPRINT_INFO[m[K’
+ #define PRINT_INFO(x...) ov_core::Printer::debugPrint(ov_core::Printer::PrintLevel::INFO, __FILE__, TOSTRING(__LINE__), [01;36m[Kx[m[K);
+                                                                                                                         [01;36m[K^[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K In member function ‘[01m[Kvoid ov_msckf::ROS1Visualizer::callback_inertial(const ConstPtr&)[m[K’:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:524:5:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K)[m[K’ before ‘[01m[Kthread_update_running[m[K’
+     [01;31m[Kthread_update_running[m[K = false;
+     [01;31m[K^~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K At global scope:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:525:4:[m[K [01;31m[Kerror: [m[Kexpected unqualified-id before ‘[01m[K)[m[K’ token
+   }[01;31m[K)[m[K;
+    [01;31m[K^[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:529:3:[m[K [01;31m[Kerror: [m[Kexpected unqualified-id before ‘[01m[Kif[m[K’
+   [01;31m[Kif[m[K (!_app->get_params().use_multi_threading_subs) {
+   [01;31m[K^~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:531:5:[m[K [01;31m[Kerror: [m[Kexpected unqualified-id before ‘[01m[Kelse[m[K’
+   } [01;31m[Kelse[m[K {
+     [01;31m[K^~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:534:1:[m[K [01;31m[Kerror: [m[Kexpected declaration before ‘[01m[K}[m[K’ token
+ [01;31m[K}[m[K
+ [01;31m[K^[m[K
+make[2]: *** [CMakeFiles/ov_msckf_lib.dir/src/ros/ROS1Visualizer.cpp.o] Error 1
+make[1]: *** [CMakeFiles/ov_msckf_lib.dir/all] Error 2
+make: *** [all] Error 2

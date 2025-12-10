@@ -1,0 +1,4 @@
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K In lambda function:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:484:27:[m[K [01;35m[Kwarning: [m[Ksuggest parentheses around comparison in operand of ‘[01m[K&[m[K’ [[01;35m[K-Wparentheses[m[K]
+         if ([01;35m[Kcurrent_state != nullptr[m[K & _app-> initialized()){
+             [01;35m[K~~~~~~~~~~~~~~^~~~~~~~~~[m[K

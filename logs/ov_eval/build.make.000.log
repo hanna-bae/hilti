@@ -1,0 +1,57 @@
+[35m[1mScanning dependencies of target ov_eval_lib[0m
+[  6%] [32mBuilding CXX object CMakeFiles/ov_eval_lib.dir/src/alignment/AlignTrajectory.cpp.o[0m
+[  6%] [32mBuilding CXX object CMakeFiles/ov_eval_lib.dir/src/dummy.cpp.o[0m
+[  9%] [32mBuilding CXX object CMakeFiles/ov_eval_lib.dir/src/utils/Loader.cpp.o[0m
+[ 12%] [32mBuilding CXX object CMakeFiles/ov_eval_lib.dir/src/alignment/AlignUtils.cpp.o[0m
+[ 16%] [32mBuilding CXX object CMakeFiles/ov_eval_lib.dir/src/calc/ResultSimulation.cpp.o[0m
+[ 19%] [32mBuilding CXX object CMakeFiles/ov_eval_lib.dir/src/calc/ResultTrajectory.cpp.o[0m
+[ 22%] [32m[1mLinking CXX shared library /root/workspace/devel/.private/ov_eval/lib/libov_eval_lib.so[0m
+[ 22%] Built target ov_eval_lib
+[35m[1mScanning dependencies of target timing_comparison[0m
+[35m[1mScanning dependencies of target timing_flamegraph[0m
+[35m[1mScanning dependencies of target error_simulation[0m
+[35m[1mScanning dependencies of target timing_histogram[0m
+[35m[1mScanning dependencies of target plot_trajectories[0m
+[35m[1mScanning dependencies of target pose_to_file[0m
+[35m[1mScanning dependencies of target live_align_trajectory[0m
+[35m[1mScanning dependencies of target format_converter[0m
+[35m[1mScanning dependencies of target error_singlerun[0m
+[35m[1mScanning dependencies of target timing_percentages[0m
+[35m[1mScanning dependencies of target error_comparison[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/format_converter.dir/src/format_converter.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/timing_flamegraph.dir/src/timing_flamegraph.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/plot_trajectories.dir/src/plot_trajectories.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/error_singlerun.dir/src/error_singlerun.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/timing_histogram.dir/src/timing_histogram.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/timing_comparison.dir/src/timing_comparison.cpp.o[0m
+[ 45%] [32mBuilding CXX object CMakeFiles/live_align_trajectory.dir/src/live_align_trajectory.cpp.o[0m
+[ 48%] [32mBuilding CXX object CMakeFiles/error_simulation.dir/src/error_simulation.cpp.o[0m
+[ 51%] [32mBuilding CXX object CMakeFiles/pose_to_file.dir/src/pose_to_file.cpp.o[0m
+[ 58%] [32mBuilding CXX object CMakeFiles/timing_percentages.dir/src/timing_percentages.cpp.o[0m
+[ 58%] [32mBuilding CXX object CMakeFiles/error_comparison.dir/src/error_comparison.cpp.o[0m
+[35m[1mScanning dependencies of target error_dataset[0m
+[ 61%] [32mBuilding CXX object CMakeFiles/error_dataset.dir/src/error_dataset.cpp.o[0m
+[ 64%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/format_converter[0m
+[ 67%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/timing_histogram[0m
+[ 67%] Built target format_converter
+[ 67%] Built target timing_histogram
+[ 70%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/timing_flamegraph[0m
+[ 74%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/timing_comparison[0m
+[ 74%] Built target timing_flamegraph
+[ 74%] Built target timing_comparison
+[ 77%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/error_simulation[0m
+[ 77%] Built target error_simulation
+[ 80%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/timing_percentages[0m
+[ 83%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/pose_to_file[0m
+[ 83%] Built target timing_percentages
+[ 83%] Built target pose_to_file
+[ 87%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/error_singlerun[0m
+[ 87%] Built target error_singlerun
+[ 90%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/plot_trajectories[0m
+[ 90%] Built target plot_trajectories
+[ 93%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/live_align_trajectory[0m
+[ 93%] Built target live_align_trajectory
+[ 96%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/error_dataset[0m
+[ 96%] Built target error_dataset
+[100%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_eval/lib/ov_eval/error_comparison[0m
+[100%] Built target error_comparison

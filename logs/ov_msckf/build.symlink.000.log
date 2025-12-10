@@ -1,0 +1,9 @@
+Symlinking /root/workspace/devel/lib/libov_msckf_lib.so
+Symlinking /root/workspace/devel/lib/pkgconfig/ov_msckf.pc
+Symlinking /root/workspace/devel/lib/ov_msckf/run_simulation
+Symlinking /root/workspace/devel/lib/ov_msckf/run_subscribe_msckf
+Symlinking /root/workspace/devel/lib/ov_msckf/test_sim_meas
+Symlinking /root/workspace/devel/lib/ov_msckf/test_sim_repeat
+Symlinking /root/workspace/devel/lib/ov_msckf/ros1_serial_msckf
+Symlinking /root/workspace/devel/share/ov_msckf/cmake/ov_msckfConfig-version.cmake
+Symlinking /root/workspace/devel/share/ov_msckf/cmake/ov_msckfConfig.cmake
