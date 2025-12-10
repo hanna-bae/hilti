@@ -1,0 +1,4 @@
+build/
+devel/
+data/
+src/open_vins/ov_msckf/MASt3R-SLAM/output/
