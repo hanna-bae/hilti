@@ -31,6 +31,85 @@
 #include "utils/print.h"
 #include "utils/sensor_data.h"
 
+#include <deque>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+#include <Eigen/Core>
+
+Eigen::Vector3d filterAccelHampel(const Eigen::Vector3d &sample) {
+  // Static window: keeps last N samples
+  static std::deque<Eigen::Vector3d> window;
+  const int window_size = 21;     // must be odd, e.g., ~0.05s at 400Hz
+  const double n_sigma = 3.0;     // threshold in terms of robust sigma
+  const double eps = 1e-12;
+
+  // Push new sample into window
+  window.push_back(sample);
+  if (static_cast<int>(window.size()) > window_size) {
+    window.pop_front();
+  }
+
+  // If not enough samples, just return raw value
+  if (window.size() < 5) {
+    return sample;
+  }
+
+  Eigen::Vector3d filtered = sample;
+
+  // Helper lambda: compute median and robust sigma for a given axis (0=x,1=y,2=z)
+  auto compute_median_and_sigma = [&](int axis, double &median, double &sigma) {
+    std::vector<double> vals;
+    vals.reserve(window.size());
+    for (const auto &v : window) {
+      vals.push_back(v(axis));
+    }
+
+    // median
+    std::nth_element(vals.begin(),
+                     vals.begin() + vals.size() / 2,
+                     vals.end());
+    median = vals[vals.size() / 2];
+
+    // MAD (Median Absolute Deviation)
+    for (auto &x : vals) {
+      x = std::abs(x - median);
+    }
+    std::nth_element(vals.begin(),
+                     vals.begin() + vals.size() / 2,
+                     vals.end());
+    double mad = vals[vals.size() / 2];
+
+    if (mad < eps) {
+      sigma = 0.0;
+    } else {
+      // 1.4826 is the factor to approximate std from MAD for Gaussian
+      sigma = 1.4826 * mad;
+    }
+  };
+
+  // Process each axis independently
+  for (int axis = 0; axis < 3; ++axis) {
+    double median = 0.0;
+    double sigma  = 0.0;
+    compute_median_and_sigma(axis, median, sigma);
+
+    if (sigma < eps) {
+      // Almost flat region → nothing to do
+      continue;
+    }
+
+    double diff = std::abs(sample(axis) - median);
+
+    // If too far from local median, treat as spike and replace
+    if (diff > n_sigma * sigma) {
+      filtered(axis) = median;
+    }
+  }
+
+  return filtered;
+}
+
 using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
@@ -65,8 +144,6 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
   // Our tracking image
   it_pub_tracks = it.advertise("trackhist", 2);
   PRINT_DEBUG("Publishing: %s\n", it_pub_tracks.getTopic().c_str());
-  pub_mast3r_img = nh->advertise<sensor_msgs::Image>("/mast3r/keyframe/image", 10);
-  pub_mast3r_pose = nh->advertise<nav_msgs::Odometry>("/mast3r/keyframe/pose", 10);
 
   // Groundtruth publishers
   pub_posegt = nh->advertise<geometry_msgs::PoseStamped>("posegt", 2);
@@ -445,6 +522,14 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
   message.wm << msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z;
   message.am << msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z;
 
+  Eigen::Vector3d acc_raw(
+      msg->linear_acceleration.x,
+      msg->linear_acceleration.y,
+      msg->linear_acceleration.z
+  );
+  Eigen::Vector3d acc_filt = filterAccelHampel(acc_raw);
+  message.am = acc_filt;
+
   // send it to our VIO system
   _app->feed_measurement_imu(message);
   visualize_odometry(message.timestamp);
@@ -478,47 +563,6 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
         double update_dt = 100.0 * (timestamp_imu_inC - camera_queue.at(0).timestamp);
         _app->feed_measurement_camera(camera_queue.at(0));
-
-        auto current_state = _app->get_state();
-        
-        if (current_state != nullptr && _app-> initialized()){
-          Eigen::Vector3d curr_pos = current_state->_imu->pos();
-          double curr_time = camera_queue.at(0).timestamp; 
-
-          double dist = (curr_pos-last_kf_pos).norm();
-          double time_diff = curr_time - last_kf_time;
-
-          if (is_first_kf || dist > 1.0 || time_diff > 3.0){
-            std_msgs::Header header;
-            header.stamp = ros::Time(camera_queue.at(0).timestamp);
-            header.frame_id = "cam0";
-
-            sensor_msgs::ImagePtr img_msg=cv_bridge::CvImage(header, "mono8", camera_queue.at(0).images.at(0)).toImageMsg();
-            pub_mast3r_img.publish(img_msg);
-
-            nav_msgs::Odometry kf_odom;
-            kf_odom.header = header;
-            kf_odom.pose.pose.position.x = curr_pos(0);
-            kf_odom.pose.pose.position.y = curr_pos(1);
-            kf_odom.pose.pose.position.z = curr_pos(2);
-            Eigen::Vector4d quat = current_state->_imu->quat();
-            kf_odom.pose.pose.orientation.x = quat(0);
-            kf_odom.pose.pose.orientation.y = quat(1);
-            kf_odom.pose.pose.orientation.z = quat(2);
-            kf_odom.pose.pose.orientation.w = quat(3);
-            pub_mast3r_pose.publish(kf_odom);
-
-            last_kf_pos = curr_pos;   
-            last_kf_time = curr_time; 
-            is_first_kf = false;      
-            
-            if (dist > 1.0){
-              PRINT_INFO(GREEN "[MAST3R] Motion Keyframe! (Dist: %.2fm)\n" RESET, dist);}
-            else {
-              PRINT_INFO(YELLOW "[MAST3R] Time Keyframe! (Stationary check)\n" RESET);}
-          }
-        }
-        
         visualize();
         camera_queue.pop_front();
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
