@@ -1,0 +1,49 @@
+
+<launch>
+
+
+
+    <arg name="verbosity"   default="INFO" />
+
+    <arg name="config_path" default="$(find ov_msckf)/../config/hilti2022/estimator_config.yaml" />
+
+
+
+    <node name="run_subscribe_msckf" pkg="ov_msckf" type="run_subscribe_msckf" output="screen" clear_params="true" required="true">
+
+        
+
+        <!-- Config file -->
+
+        <param name="config_path"  type="string" value="$(arg config_path)" />
+
+        
+
+        <!-- Verbosity -->
+
+        <param name="verbosity"    type="string" value="$(arg verbosity)" />
+
+        
+
+        <!-- Camera settings -->
+
+        <param name="max_cameras" type="int" value="2" />
+
+        <param name="use_stereo" type="bool" value="true" />
+
+        
+
+        <!-- Timing -->
+
+        <param name="record_timing_information" type="bool" value="false" />
+
+        <param name="record_timing_filepath" type="string" value="/tmp/traj_timing.txt" />
+
+        
+
+    </node>
+
+
+
+</launch>
+

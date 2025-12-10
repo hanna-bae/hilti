@@ -1,0 +1,17 @@
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_init.cpp:[m[K In function ‘[01m[Kint main(int, char**)[m[K’:
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_init.cpp:278:16:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess3[m[K’ [[01;35m[K-Wunused-variable[m[K]
+           bool [01;35m[Ksuccess3[m[K = sim.get_state(_pose.first + sim.get_true_parameters().calib_camimu_dt, gt_imustate);
+                [01;35m[K^~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_init.cpp:191:14:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess1[m[K’ [[01;35m[K-Wunused-variable[m[K]
+         bool [01;35m[Ksuccess1[m[K = sim.get_state(timestamp + sim.get_true_parameters().calib_camimu_dt, gt_imu);
+              [01;35m[K^~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_init.cpp:252:14:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess2[m[K’ [[01;35m[K-Wunused-variable[m[K]
+         bool [01;35m[Ksuccess2[m[K = sim.get_state(oldestpose_time + sim.get_true_parameters().calib_camimu_dt, gt_imustate_0);
+              [01;35m[K^~~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_mle.cpp:[m[K In function ‘[01m[Kint main(int, char**)[m[K’:
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_mle.cpp:207:16:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess[m[K’ [[01;35m[K-Wunused-variable[m[K]
+           bool [01;35m[Ksuccess[m[K = sim.get_state(time1, gt_imustate);
+                [01;35m[K^~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_mle.cpp:581:16:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess[m[K’ [[01;35m[K-Wunused-variable[m[K]
+           bool [01;35m[Ksuccess[m[K = sim.get_state(statepair.first + sim.get_true_parameters().calib_camimu_dt, gt_imustate);
+                [01;35m[K^~~~~~~[m[K
