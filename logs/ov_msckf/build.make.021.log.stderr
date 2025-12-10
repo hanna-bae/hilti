@@ -1,0 +1,4 @@
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K In lambda function:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:599:20:[m[K [01;35m[Kwarning: [m[K‘[01m[Kdist_thresh[m[K’ may be used uninitialized in this function [[01;35m[K-Wmaybe-uninitialized[m[K]
+             } else [01;35m[Kif[m[K (dist > dist_thresh) {
+                    [01;35m[K^~[m[K

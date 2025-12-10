@@ -37,81 +37,6 @@
 #include <cmath>
 #include <Eigen/Core>
 
-// ================= [START] Hampel Filter Definition =================
-Eigen::Vector3d filterAccelHampel(const Eigen::Vector3d &sample) {
-  // Static window: keeps last N samples
-  static std::deque<Eigen::Vector3d> window;
-  const int window_size = 21;     // must be odd, e.g., ~0.05s at 400Hz
-  const double n_sigma = 3.0;     // threshold in terms of robust sigma
-  const double eps = 1e-12;
-
-  // Push new sample into window
-  window.push_back(sample);
-  if (static_cast<int>(window.size()) > window_size) {
-    window.pop_front();
-  }
-
-  // If not enough samples, just return raw value
-  if (window.size() < 5) {
-    return sample;
-  }
-
-  Eigen::Vector3d filtered = sample;
-
-  // Helper lambda: compute median and robust sigma for a given axis (0=x,1=y,2=z)
-  auto compute_median_and_sigma = [&](int axis, double &median, double &sigma) {
-    std::vector<double> vals;
-    vals.reserve(window.size());
-    for (const auto &v : window) {
-      vals.push_back(v(axis));
-    }
-
-    // median
-    std::nth_element(vals.begin(),
-                     vals.begin() + vals.size() / 2,
-                     vals.end());
-    median = vals[vals.size() / 2];
-
-    // MAD (Median Absolute Deviation)
-    for (auto &x : vals) {
-      x = std::abs(x - median);
-    }
-    std::nth_element(vals.begin(),
-                     vals.begin() + vals.size() / 2,
-                     vals.end());
-    double mad = vals[vals.size() / 2];
-
-    if (mad < eps) {
-      sigma = 0.0;
-    } else {
-      // 1.4826 is the factor to approximate std from MAD for Gaussian
-      sigma = 1.4826 * mad;
-    }
-  };
-
-  // Process each axis independently
-  for (int axis = 0; axis < 3; ++axis) {
-    double median = 0.0;
-    double sigma  = 0.0;
-    compute_median_and_sigma(axis, median, sigma);
-
-    if (sigma < eps) {
-      // Almost flat region → nothing to do
-      continue;
-    }
-
-    double diff = std::abs(sample(axis) - median);
-
-    // If too far from local median, treat as spike and replace
-    if (diff > n_sigma * sigma) {
-      filtered(axis) = median;
-    }
-  }
-
-  return filtered;
-}
-// ================= [END] Hampel Filter Definition =================
-
 using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
@@ -520,55 +445,102 @@ void ROS1Visualizer::visualize_final() {
   PRINT_INFO(REDPURPLE "TIME: %.3f seconds\n\n" RESET, (rT2 - rT1).total_microseconds() * 1e-6);
 }
 
+// [MODIFIED] Group Delay Compensation (Buffer & Filter)
+// Future buffering to remove phase lag
 void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
 
-  // convert into correct format
-  ov_core::ImuData message;
-  message.timestamp = msg->header.stamp.toSec();
-  message.wm << msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z;
+  // 1. Data Conversion
+  ov_core::ImuData raw_data;
+  raw_data.timestamp = msg->header.stamp.toSec();
+  raw_data.wm << msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z;
+  raw_data.am << msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z;
+
+  // 2. Static Buffer
+  static std::deque<ov_core::ImuData> buffer;
+  const int window_size = 21; // Robust Filtering
+  const int half_win = window_size / 2; // 10
+  const double n_sigma = 3.0;
+
+  // Push new data
+  buffer.push_back(raw_data);
+
+  // 3. Wait for buffer to fill (Latency introduction)
+  if (buffer.size() < window_size) {
+    return; // Don't process yet
+  }
+
+  // 4. Process the MIDDLE element (Non-causal filtering)
+  // buffer[10] is the target. buffer[0..20] are used for stats.
+  ov_core::ImuData &target_data = buffer[half_win]; 
   
-  // [MODIFIED] Apply Hampel Filter for outlier rejection
-  Eigen::Vector3d acc_raw(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
-  Eigen::Vector3d acc_filt = filterAccelHampel(acc_raw);
-  message.am = acc_filt; 
+  Eigen::Vector3d acc_filt = target_data.am;
+  
+  // Calculate stats for X, Y, Z using the whole buffer
+  for (int axis = 0; axis < 3; ++axis) {
+      std::vector<double> vals;
+      vals.reserve(window_size);
+      for (const auto &d : buffer) vals.push_back(d.am(axis));
 
-  // send it to our VIO system
-  _app->feed_measurement_imu(message);
-  visualize_odometry(message.timestamp);
+      // Median
+      std::nth_element(vals.begin(), vals.begin() + half_win, vals.end());
+      double median = vals[half_win];
 
-  // If the processing queue is currently active / running just return so we can keep getting measurements
-  // Otherwise create a second thread to do our update in an async manor
-  // The visualization of the state, images, and features will be synchronous with the update!
+      // MAD
+      for (auto &x : vals) x = std::abs(x - median);
+      std::nth_element(vals.begin(), vals.begin() + half_win, vals.end());
+      double mad = vals[half_win];
+      double sigma = 1.4826 * mad;
+
+      // Outlier Rejection
+      // If outlier, replace with median.
+      // If not, keep original (which is perfectly synced in time)
+      if (std::abs(target_data.am(axis) - median) > n_sigma * sigma) {
+          acc_filt(axis) = median; 
+      } else {
+          acc_filt(axis) = target_data.am(axis); 
+      }
+  }
+
+  // Apply filtered accel
+  target_data.am = acc_filt;
+
+  // 5. Send the delayed (but clean and synced) measurement
+  _app->feed_measurement_imu(target_data);
+  visualize_odometry(target_data.timestamp);
+
+  // 6. Slide window
+  buffer.pop_front();
+
+  // =========================================================
+  // MAST3R-SLAM Logic (Using target_data.timestamp)
+  // =========================================================
+
   if (thread_update_running)
     return;
   thread_update_running = true;
-  std::thread thread([&] {
-    // Lock on the queue (prevents new images from appending)
+  // Capture target_ts by value to ensure thread safety
+  std::thread thread([&, target_ts = target_data.timestamp] { 
     std::lock_guard<std::mutex> lck(camera_queue_mtx);
 
-    // Count how many unique image streams
     std::map<int, bool> unique_cam_ids;
     for (const auto &cam_msg : camera_queue) {
       unique_cam_ids[cam_msg.sensor_ids.at(0)] = true;
     }
 
-    // If we do not have enough unique cameras then we need to wait
-    // We should wait till we have one of each camera to ensure we propagate in the correct order
     auto params = _app->get_params();
     size_t num_unique_cameras = (params.state_options.num_cameras == 2) ? 1 : params.state_options.num_cameras;
     if (unique_cam_ids.size() == num_unique_cameras) {
 
-      // Loop through our queue and see if we are able to process any of our camera measurements
-      // We are able to process if we have at least one IMU measurement greater than the camera time
-      double timestamp_imu_inC = message.timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+      // Use the delayed timestamp for synchronization
+      double timestamp_imu_inC = target_ts - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+      
       while (!camera_queue.empty() && camera_queue.at(0).timestamp < timestamp_imu_inC) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
         double update_dt = 100.0 * (timestamp_imu_inC - camera_queue.at(0).timestamp);
         
         _app->feed_measurement_camera(camera_queue.at(0));
 
-        // ================= [START] MAST3R-SLAM Integration Logic =================
-        // Static variables to persist state across callbacks
+        // [MAST3R Logic]
         static Eigen::Vector3d last_kf_pos = Eigen::Vector3d::Zero();
         static double last_kf_time = -1.0;
         static bool is_first_kf = true;
@@ -579,18 +551,25 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
           Eigen::Vector3d curr_pos = current_state->_imu->pos();
           double curr_time = camera_queue.at(0).timestamp;
           
-          // Initialize system start time
           if (system_start_time < 0) system_start_time = curr_time;
+          double elapsed_time = curr_time - system_start_time;
+          double dist_thresh, time_thresh;
 
-          // 1. Startup Mode Check (First 30 seconds)
-          bool is_startup_phase = (curr_time - system_start_time) < 30.0;
-
-          // 2. Dynamic Thresholds
-          // Startup: 0.15m dist, 0.5s time (Aggressive)
-          // Normal:  0.5m dist, 3.0s time (Standard)
-          double dist_thresh = is_startup_phase ? 0.15 : 0.5; 
-          double time_thresh = is_startup_phase ? 0.5 : 3.0;
-
+          if (elapsed_time < 5.0) {
+              // [Phase 1] Super Startup
+              time_thresh = 0.2;
+          } 
+          else if (elapsed_time < 20.0) {
+              // [Phase 2] Stabilization
+              dist_thresh = 0.15;
+              time_thresh = 1.0;
+          } 
+          else {
+              // [Phase 3] Normal Operation
+              dist_thresh = 1.0;
+              time_thresh = 3.0;
+          }
+          
           double dist = (curr_pos - last_kf_pos).norm();
           double time_diff = curr_time - last_kf_time;
 
@@ -598,10 +577,8 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
             std_msgs::Header header;
             header.stamp = ros::Time(camera_queue.at(0).timestamp);
             header.frame_id = "cam0";
-
             sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(header, "mono8", camera_queue.at(0).images.at(0)).toImageMsg();
             pub_mast3r_img.publish(img_msg);
-
             nav_msgs::Odometry kf_odom;
             kf_odom.header = header;
             kf_odom.pose.pose.position.x = curr_pos(0);
@@ -613,22 +590,20 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
             kf_odom.pose.pose.orientation.z = quat(2);
             kf_odom.pose.pose.orientation.w = quat(3);
             pub_mast3r_pose.publish(kf_odom);
-
             last_kf_pos = curr_pos;
             last_kf_time = curr_time;
             is_first_kf = false;
-
-            if (is_startup_phase) {
-                 PRINT_INFO(CYAN "[MAST3R] Startup Keyframe! (Time: %.1fs, Dist: %.2fm)\n" RESET, (curr_time - system_start_time), dist);
+            
+            if (elapsed_time < 5.0) {
+                 PRINT_INFO(CYAN "[MAST3R] Super-Start! (T:%.1f, D:%.3fm)\n" RESET, elapsed_time, dist);
             } else if (dist > dist_thresh) {
-                 PRINT_INFO(GREEN "[MAST3R] Motion Keyframe! (Dist: %.2fm)\n" RESET, dist);
+                 PRINT_INFO(GREEN "[MAST3R] Motion Keyframe (D:%.2fm)\n" RESET, dist);
             } else {
-                 PRINT_INFO(YELLOW "[MAST3R] Time Keyframe! (Stationary check)\n" RESET);
+                 PRINT_INFO(YELLOW "[MAST3R] Time Keyframe\n" RESET);
             }
           }
         }
-        // ================= [END] MAST3R-SLAM Integration Logic =================
-
+        
         visualize();
         camera_queue.pop_front();
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
@@ -639,8 +614,6 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
     thread_update_running = false;
   });
 
-  // If we are single threaded, then run single threaded
-  // Otherwise detach this thread so it runs in the background!
   if (!_app->get_params().use_multi_threading_subs) {
     thread.join();
   } else {
