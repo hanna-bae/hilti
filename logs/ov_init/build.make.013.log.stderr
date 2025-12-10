@@ -1,21 +1,3 @@
-[35m[1mScanning dependencies of target ov_init_lib[0m
-[  6%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/ceres/Factor_ImageReprojCalib.cpp.o[0m
-[ 12%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/init/InertialInitializer.cpp.o[0m
-[ 18%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/static/StaticInitializer.cpp.o[0m
-[ 25%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/dummy.cpp.o[0m
-[ 31%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/ceres/Factor_GenericPrior.cpp.o[0m
-[ 37%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/ceres/Factor_ImuCPIv1.cpp.o[0m
-[ 50%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/ceres/State_JPLQuatLocal.cpp.o[0m
-[ 50%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/dynamic/DynamicInitializer.cpp.o[0m
-[ 56%] [32mBuilding CXX object CMakeFiles/ov_init_lib.dir/src/sim/SimulatorInit.cpp.o[0m
-[ 62%] [32m[1mLinking CXX shared library /root/workspace/devel/.private/ov_init/lib/libov_init_lib.so[0m
-[ 62%] Built target ov_init_lib
-[35m[1mScanning dependencies of target test_simulation[0m
-[35m[1mScanning dependencies of target test_dynamic_init[0m
-[35m[1mScanning dependencies of target test_dynamic_mle[0m
-[ 68%] [32mBuilding CXX object CMakeFiles/test_dynamic_init.dir/src/test_dynamic_init.cpp.o[0m
-[ 75%] [32mBuilding CXX object CMakeFiles/test_dynamic_mle.dir/src/test_dynamic_mle.cpp.o[0m
-[ 81%] [32mBuilding CXX object CMakeFiles/test_simulation.dir/src/test_simulation.cpp.o[0m
 [01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_mle.cpp:[m[K In function ‘[01m[Kint main(int, char**)[m[K’:
 [01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_mle.cpp:207:16:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess[m[K’ [[01;35m[K-Wunused-variable[m[K]
            bool [01;35m[Ksuccess[m[K = sim.get_state(time1, gt_imustate);
@@ -33,9 +15,3 @@
 [01m[K/root/workspace/src/open_vins/ov_init/src/test_dynamic_mle.cpp:581:16:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Ksuccess[m[K’ [[01;35m[K-Wunused-variable[m[K]
            bool [01;35m[Ksuccess[m[K = sim.get_state(statepair.first + sim.get_true_parameters().calib_camimu_dt, gt_imustate);
                 [01;35m[K^~~~~~~[m[K
-[ 87%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_init/lib/ov_init/test_simulation[0m
-[ 87%] Built target test_simulation
-[ 93%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_init/lib/ov_init/test_dynamic_mle[0m
-[ 93%] Built target test_dynamic_mle
-[100%] [32m[1mLinking CXX executable /root/workspace/devel/.private/ov_init/lib/ov_init/test_dynamic_init[0m
-[100%] Built target test_dynamic_init

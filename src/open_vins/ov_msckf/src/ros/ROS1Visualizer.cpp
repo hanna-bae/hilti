@@ -37,6 +37,7 @@
 #include <cmath>
 #include <Eigen/Core>
 
+// ================= [START] Hampel Filter Definition =================
 Eigen::Vector3d filterAccelHampel(const Eigen::Vector3d &sample) {
   // Static window: keeps last N samples
   static std::deque<Eigen::Vector3d> window;
@@ -109,6 +110,7 @@ Eigen::Vector3d filterAccelHampel(const Eigen::Vector3d &sample) {
 
   return filtered;
 }
+// ================= [END] Hampel Filter Definition =================
 
 using namespace ov_core;
 using namespace ov_type;
@@ -144,6 +146,10 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
   // Our tracking image
   it_pub_tracks = it.advertise("trackhist", 2);
   PRINT_DEBUG("Publishing: %s\n", it_pub_tracks.getTopic().c_str());
+  
+  // [ADDED] MAST3R-SLAM Publishers
+  pub_mast3r_img = nh->advertise<sensor_msgs::Image>("/mast3r/keyframe/image", 10);
+  pub_mast3r_pose = nh->advertise<nav_msgs::Odometry>("/mast3r/keyframe/pose", 10);
 
   // Groundtruth publishers
   pub_posegt = nh->advertise<geometry_msgs::PoseStamped>("posegt", 2);
@@ -520,15 +526,11 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
   ov_core::ImuData message;
   message.timestamp = msg->header.stamp.toSec();
   message.wm << msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z;
-  message.am << msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z;
-
-  Eigen::Vector3d acc_raw(
-      msg->linear_acceleration.x,
-      msg->linear_acceleration.y,
-      msg->linear_acceleration.z
-  );
+  
+  // [MODIFIED] Apply Hampel Filter for outlier rejection
+  Eigen::Vector3d acc_raw(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
   Eigen::Vector3d acc_filt = filterAccelHampel(acc_raw);
-  message.am = acc_filt;
+  message.am = acc_filt; 
 
   // send it to our VIO system
   _app->feed_measurement_imu(message);
@@ -562,7 +564,71 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
       while (!camera_queue.empty() && camera_queue.at(0).timestamp < timestamp_imu_inC) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
         double update_dt = 100.0 * (timestamp_imu_inC - camera_queue.at(0).timestamp);
+        
         _app->feed_measurement_camera(camera_queue.at(0));
+
+        // ================= [START] MAST3R-SLAM Integration Logic =================
+        // Static variables to persist state across callbacks
+        static Eigen::Vector3d last_kf_pos = Eigen::Vector3d::Zero();
+        static double last_kf_time = -1.0;
+        static bool is_first_kf = true;
+        static double system_start_time = -1.0;
+
+        auto current_state = _app->get_state();
+        if (current_state != nullptr && _app->initialized()) {
+          Eigen::Vector3d curr_pos = current_state->_imu->pos();
+          double curr_time = camera_queue.at(0).timestamp;
+          
+          // Initialize system start time
+          if (system_start_time < 0) system_start_time = curr_time;
+
+          // 1. Startup Mode Check (First 30 seconds)
+          bool is_startup_phase = (curr_time - system_start_time) < 30.0;
+
+          // 2. Dynamic Thresholds
+          // Startup: 0.15m dist, 0.5s time (Aggressive)
+          // Normal:  0.5m dist, 3.0s time (Standard)
+          double dist_thresh = is_startup_phase ? 0.15 : 0.5; 
+          double time_thresh = is_startup_phase ? 0.5 : 3.0;
+
+          double dist = (curr_pos - last_kf_pos).norm();
+          double time_diff = curr_time - last_kf_time;
+
+          if (is_first_kf || dist > dist_thresh || time_diff > time_thresh) {
+            std_msgs::Header header;
+            header.stamp = ros::Time(camera_queue.at(0).timestamp);
+            header.frame_id = "cam0";
+
+            sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(header, "mono8", camera_queue.at(0).images.at(0)).toImageMsg();
+            pub_mast3r_img.publish(img_msg);
+
+            nav_msgs::Odometry kf_odom;
+            kf_odom.header = header;
+            kf_odom.pose.pose.position.x = curr_pos(0);
+            kf_odom.pose.pose.position.y = curr_pos(1);
+            kf_odom.pose.pose.position.z = curr_pos(2);
+            Eigen::Vector4d quat = current_state->_imu->quat();
+            kf_odom.pose.pose.orientation.x = quat(0);
+            kf_odom.pose.pose.orientation.y = quat(1);
+            kf_odom.pose.pose.orientation.z = quat(2);
+            kf_odom.pose.pose.orientation.w = quat(3);
+            pub_mast3r_pose.publish(kf_odom);
+
+            last_kf_pos = curr_pos;
+            last_kf_time = curr_time;
+            is_first_kf = false;
+
+            if (is_startup_phase) {
+                 PRINT_INFO(CYAN "[MAST3R] Startup Keyframe! (Time: %.1fs, Dist: %.2fm)\n" RESET, (curr_time - system_start_time), dist);
+            } else if (dist > dist_thresh) {
+                 PRINT_INFO(GREEN "[MAST3R] Motion Keyframe! (Dist: %.2fm)\n" RESET, dist);
+            } else {
+                 PRINT_INFO(YELLOW "[MAST3R] Time Keyframe! (Stationary check)\n" RESET);
+            }
+          }
+        }
+        // ================= [END] MAST3R-SLAM Integration Logic =================
+
         visualize();
         camera_queue.pop_front();
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
