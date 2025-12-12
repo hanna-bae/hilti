@@ -259,7 +259,7 @@ class Mast3rSlamNode:
 
     def save_results(self):
         print("\n\033[92m[Saving] Converting to IMU Frame & Saving...\033[0m")
-        date_str = 'hilti15_1211_test2'
+        date_str = 'hilti21_1212_test1'
         save_dir = pathlib.Path(f"output/{date_str}")
         save_dir.mkdir(parents=True, exist_ok=True)
 

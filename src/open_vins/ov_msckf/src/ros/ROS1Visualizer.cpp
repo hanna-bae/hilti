@@ -457,7 +457,7 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
 
   // 2. Static Buffer
   static std::deque<ov_core::ImuData> buffer;
-  const int window_size = 21; // Robust Filtering
+  const int window_size = 10; // Robust Filtering
   const int half_win = window_size / 2; // 10
   const double n_sigma = 3.0;
 
@@ -540,7 +540,7 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
         
         _app->feed_measurement_camera(camera_queue.at(0));
 
-        // [MAST3R Logic]
+     // ================= [START] MAST3R-SLAM Integration Logic (Improved) =================
         static Eigen::Vector3d last_kf_pos = Eigen::Vector3d::Zero();
         static double last_kf_time = -1.0;
         static bool is_first_kf = true;
@@ -553,10 +553,17 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
           
           if (system_start_time < 0) system_start_time = curr_time;
           double elapsed_time = curr_time - system_start_time;
+
+          // ===========================================================================
+          // 1. Super Startup (0~5): all
+          // 2. Startup (5~20): small
+          // 3. Normal (20~): keyframe condition
+          // ===========================================================================
+          
           double dist_thresh, time_thresh;
 
           if (elapsed_time < 5.0) {
-              // [Phase 1] Super Startup
+              dist_thresh = 0.01; 
               time_thresh = 0.2;
           } 
           else if (elapsed_time < 20.0) {
@@ -569,16 +576,18 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
               dist_thresh = 1.0;
               time_thresh = 3.0;
           }
-          
+
           double dist = (curr_pos - last_kf_pos).norm();
           double time_diff = curr_time - last_kf_time;
-
+          
           if (is_first_kf || dist > dist_thresh || time_diff > time_thresh) {
             std_msgs::Header header;
-            header.stamp = ros::Time(camera_queue.at(0).timestamp);
+            header.stamp = ros::Time(camera_queue.at(0).timestamp); 
             header.frame_id = "cam0";
+
             sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(header, "mono8", camera_queue.at(0).images.at(0)).toImageMsg();
             pub_mast3r_img.publish(img_msg);
+
             nav_msgs::Odometry kf_odom;
             kf_odom.header = header;
             kf_odom.pose.pose.position.x = curr_pos(0);
@@ -590,6 +599,7 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
             kf_odom.pose.pose.orientation.z = quat(2);
             kf_odom.pose.pose.orientation.w = quat(3);
             pub_mast3r_pose.publish(kf_odom);
+
             last_kf_pos = curr_pos;
             last_kf_time = curr_time;
             is_first_kf = false;
@@ -603,7 +613,7 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
             }
           }
         }
-        
+        // ================= [END] MAST3R-SLAM Integration Logic =================
         visualize();
         camera_queue.pop_front();
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
