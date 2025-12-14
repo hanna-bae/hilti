@@ -1,0 +1,16 @@
+[35m[1mScanning dependencies of target ov_msckf_lib[0m
+[  4%] [32mBuilding CXX object CMakeFiles/ov_msckf_lib.dir/src/ros/ROS1Visualizer.cpp.o[0m
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K In member function ‘[01m[Kvoid ov_msckf::ROS1Visualizer::callback_inertial(const ConstPtr&)[m[K’:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:401:3:[m[K [01;31m[Kerror: [m[K‘[01m[Kmessage[m[K’ was not declared in this scope
+   [01;31m[Kmessage[m[K.am = acc_filt;
+   [01;31m[K^~~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:[m[K In lambda function:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/ros/ROS1Visualizer.cpp:425:34:[m[K [01;31m[Kerror: [m[K‘[01m[Ktarget_ts[m[K’ was not declared in this scope
+       double timestamp_imu_inC = [01;31m[Ktarget_ts[m[K - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+                                  [01;31m[K^~~~~~~~~[m[K
+CMakeFiles/ov_msckf_lib.dir/build.make:326: recipe for target 'CMakeFiles/ov_msckf_lib.dir/src/ros/ROS1Visualizer.cpp.o' failed
+make[2]: *** [CMakeFiles/ov_msckf_lib.dir/src/ros/ROS1Visualizer.cpp.o] Error 1
+CMakeFiles/Makefile2:1549: recipe for target 'CMakeFiles/ov_msckf_lib.dir/all' failed
+make[1]: *** [CMakeFiles/ov_msckf_lib.dir/all] Error 2
+Makefile:140: recipe for target 'all' failed
+make: *** [all] Error 2

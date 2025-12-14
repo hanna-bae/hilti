@@ -142,6 +142,11 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
   }
   rT2 = boost::posix_time::microsec_clock::local_time();
 
+  // ====================================================================================
+  // IDEA 2: Additional outlier rejection based on IMU consistency and spatial depth
+  // ====================================================================================
+  apply_outlier_rejection_idea2(state, feature_vec);
+
   // Calculate the max possible measurement size
   size_t max_meas_size = 0;
   for (size_t i = 0; i < feature_vec.size(); i++) {
@@ -292,4 +297,285 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
   PRINT_ALL("[MSCKF-UP]: %.4f seconds compress system\n", (rT4 - rT3).total_microseconds() * 1e-6);
   PRINT_ALL("[MSCKF-UP]: %.4f seconds update state (%d size)\n", (rT5 - rT4).total_microseconds() * 1e-6, (int)res_big.rows());
   PRINT_ALL("[MSCKF-UP]: %.4f seconds total\n", (rT5 - rT1).total_microseconds() * 1e-6);
+}
+// Appending to UpdaterMSCKF.cpp - add this content at the end of the file
+
+void UpdaterMSCKF::apply_outlier_rejection_idea2(std::shared_ptr<State> state, std::vector<std::shared_ptr<Feature>> &features) {
+
+  // Early exit if no features to process
+  if (features.empty()) {
+    return;
+  }
+
+  // Configurable thresholds
+  const double MIN_DEPTH = 0.1;                // meters (close range for indoor)
+  const double MAX_DEPTH = 100.0;              // meters
+  const double MAX_REPROJECTION_ERROR = 20.0;   // pixels (Stage 1) - relaxed for indoor
+  const double DEPTH_MEDIAN_RATIO = 3.0;       // spatial consistency threshold (Stage 2)
+  const size_t MIN_FEATURES_FOR_MEDIAN = 5;    // minimum features for statistical check
+
+  // Get current IMU state
+  Eigen::Vector3d p_IinG = state->_imu->pos();
+  Eigen::Matrix<double, 3, 3> R_GtoI = quat_2_Rot(state->_imu->quat());
+
+  // Use set to avoid duplicate marking
+  std::set<size_t> indexes_to_remove;
+  std::vector<std::pair<size_t, double>> valid_feature_depths;
+
+  // Stage 1 counters
+  int stage1_rejected = 0;
+
+  // ---------------------------------------------------------
+  // Stage 1: IMU Consistency Check (Reprojection Error)
+  // Reject features with high reprojection error
+  // ---------------------------------------------------------
+  for (size_t i = 0; i < features.size(); i++) {
+    auto feat = features[i];
+
+    // Skip if feature doesn't have triangulated position
+    // Note: p_FinG.norm() < 0.01 means either uninitialized (zero) or too close to origin
+    // Triangulation should set p_FinG to non-zero if successful
+    if (feat->p_FinG.norm() < 0.01) {
+      if (i < 5) {
+        PRINT_DEBUG("[OUTLIER REJ]: Feature %zu skipped - no triangulated position (norm=%.6f)\n", 
+                    feat->featid, feat->p_FinG.norm());
+      }
+      continue;
+    }
+
+    Eigen::Vector3d p_FinG = feat->p_FinG;
+    double max_reproj_error = 0.0;
+    bool has_valid_observation = false;
+
+    // Check reprojection error for all camera observations
+    for (const auto &camid_times : feat->timestamps) {
+      size_t cam_id = camid_times.first;
+      const std::vector<double> &timestamps = camid_times.second;
+
+      if (timestamps.empty()) continue;
+
+      // Get camera extrinsics (IMU to Camera transform)
+      auto calib_it = state->_calib_IMUtoCAM.find(cam_id);
+      if (calib_it == state->_calib_IMUtoCAM.end()) {
+        continue;
+      }
+      auto calib_cam = calib_it->second;
+      Eigen::Matrix<double, 3, 3> R_ItoC = calib_cam->Rot();
+      Eigen::Vector3d p_IinC = calib_cam->pos();
+
+      // Get camera intrinsics
+      auto intrinsics_it = state->_cam_intrinsics_cameras.find(cam_id);
+      if (intrinsics_it == state->_cam_intrinsics_cameras.end()) {
+        continue;
+      }
+      auto cam_intrinsics = intrinsics_it->second;
+
+      // Loop through each timestamp for this camera
+      for (size_t m = 0; m < timestamps.size(); m++) {
+        double timestamp = timestamps[m];
+
+        // Get the IMU clone pose at this timestamp
+        auto clone_it = state->_clones_IMU.find(timestamp);
+        if (clone_it == state->_clones_IMU.end()) {
+          continue;
+        }
+        auto clone_imu = clone_it->second;
+        Eigen::Vector3d p_IinG = clone_imu->pos();
+        Eigen::Matrix<double, 3, 3> R_GtoI = quat_2_Rot(clone_imu->quat());
+
+        // Transform feature from Global -> IMU -> Camera frame
+        Eigen::Vector3d p_FinI = R_GtoI * (p_FinG - p_IinG);
+        Eigen::Vector3d p_FinC = R_ItoC * p_FinI + p_IinC;
+
+        // Skip if behind camera
+        if (p_FinC(2) <= 0) continue;
+
+        // Normalize the 3D point
+        Eigen::Vector2d uv_norm;
+        uv_norm << p_FinC(0) / p_FinC(2), p_FinC(1) / p_FinC(2);
+
+        // Distort the normalized coordinates to get pixel coordinates
+        Eigen::Vector2d uv_dist;
+        uv_dist = cam_intrinsics->distort_d(uv_norm);
+
+        // Get the observation at this index
+        if (m >= feat->uvs.at(cam_id).size()) continue;
+        Eigen::VectorXf uv_obs_vec = feat->uvs.at(cam_id).at(m);
+        if (uv_obs_vec.rows() < 2) continue;
+        Eigen::Vector2d uv_obs = uv_obs_vec.head<2>().cast<double>();
+        
+        // Calculate reprojection error
+        double reproj_error = (uv_dist - uv_obs).norm();
+        max_reproj_error = std::max(max_reproj_error, reproj_error);
+        has_valid_observation = true;
+      }
+    }
+
+    // Reject if reprojection error is too high
+    if (has_valid_observation && max_reproj_error > MAX_REPROJECTION_ERROR) {
+      indexes_to_remove.insert(i);
+      stage1_rejected++;
+      if (stage1_rejected <= 3) { // Print first 3 rejected features
+        PRINT_DEBUG("[OUTLIER REJ] Stage 1: Feat %zu rejected (reproj_error=%.2f > %.1f)\n",
+                    feat->featid, max_reproj_error, MAX_REPROJECTION_ERROR);
+      }
+    }
+  }
+
+  PRINT_INFO("[OUTLIER REJ]: Stage 1 rejected %d features (reprojection error > %.1f pixels)\n",
+             stage1_rejected, MAX_REPROJECTION_ERROR);
+
+  // ---------------------------------------------------------
+  // Collect depths for all features using simple depth calculation
+  // ---------------------------------------------------------
+  for (size_t i = 0; i < features.size(); i++) {
+    auto feat = features[i];
+
+    // Skip if already marked for deletion in Stage 1
+    if (indexes_to_remove.find(i) != indexes_to_remove.end()) {
+      continue;
+    }
+
+    // Skip if feature doesn't have triangulated position
+    if (feat->p_FinG.norm() < 0.01) {
+      continue;
+    }
+
+    // Use the feature's existing triangulated position
+    Eigen::Vector3d p_FinG = feat->p_FinG;
+
+    // Calculate average depth across all camera observations
+    double total_depth = 0.0;
+    int valid_cam_count = 0;
+
+    for (const auto &camid_times : feat->timestamps) {
+      size_t cam_id = camid_times.first;
+      const std::vector<double> &timestamps = camid_times.second;
+
+      // Get camera extrinsics (IMU to Camera transform)
+      auto calib_it = state->_calib_IMUtoCAM.find(cam_id);
+      if (calib_it == state->_calib_IMUtoCAM.end()) {
+        continue;
+      }
+      auto calib_cam = calib_it->second;
+      Eigen::Matrix<double, 3, 3> R_ItoC = calib_cam->Rot();
+      Eigen::Vector3d p_IinC = calib_cam->pos();
+
+      // Use the most recent timestamp for depth calculation
+      if (timestamps.empty()) continue;
+      double timestamp = timestamps.back();
+
+      // Get the IMU clone pose at this timestamp
+      auto clone_it = state->_clones_IMU.find(timestamp);
+      if (clone_it == state->_clones_IMU.end()) {
+        continue;
+      }
+      auto clone_imu = clone_it->second;
+      Eigen::Vector3d p_IinG = clone_imu->pos();
+      Eigen::Matrix<double, 3, 3> R_GtoI = quat_2_Rot(clone_imu->quat());
+
+      // Transform feature from Global -> IMU -> Camera frame
+      Eigen::Vector3d p_FinI = R_GtoI * (p_FinG - p_IinG);
+      Eigen::Vector3d p_FinC = R_ItoC * p_FinI + p_IinC;
+
+      // Check depth validity
+      double depth = p_FinC(2);
+      
+      // Debug: print depth values to understand rejection
+      if (i < 5) { // Only print first 5 features to avoid spam
+        PRINT_DEBUG("[DEPTH CHECK] Feat %zu, Cam %zu: depth=%.3f (p_FinC=[%.3f, %.3f, %.3f])\n",
+                    feat->featid, cam_id, depth, p_FinC(0), p_FinC(1), p_FinC(2));
+      }
+      
+      if (depth < MIN_DEPTH || depth > MAX_DEPTH) {
+        if (i < 5) {
+          PRINT_DEBUG("  -> REJECTED: depth %.3f outside [%.1f, %.1f]\n", depth, MIN_DEPTH, MAX_DEPTH);
+        }
+        continue;
+      }
+
+      // Accumulate depth for averaging
+      total_depth += depth;
+      valid_cam_count++;
+    }
+
+    PRINT_INFO("Valid Cam Count %d\n", valid_cam_count) 
+
+    // Store valid feature with average depth
+    if (valid_cam_count > 0) {
+      double avg_depth = total_depth / valid_cam_count;
+      valid_feature_depths.push_back(std::make_pair(i, avg_depth));
+      if (i < 5) {
+        PRINT_DEBUG("[DEPTH CHECK] Feat %zu: avg_depth=%.3f (from %d cameras)\n", 
+                    feat->featid, avg_depth, valid_cam_count);
+      }
+    } else if (i < 5) {
+      PRINT_DEBUG("[DEPTH CHECK] Feat %zu: NO VALID DEPTHS (valid_cam_count=0)\n", feat->featid);
+    }
+  }
+  
+  PRINT_INFO("[OUTLIER REJ]: Found %d features with valid depths (after Stage 1)\n", 
+             (int)valid_feature_depths.size());
+
+  // ---------------------------------------------------------
+  // Stage 2: Spatial Depth Consistency (Median Filter)
+  // ---------------------------------------------------------
+  int stage2_rejected = 0;
+    
+  if (valid_feature_depths.size() > MIN_FEATURES_FOR_MEDIAN) {
+    // Extract depths and calculate median
+    std::vector<double> depths_only;
+    depths_only.reserve(valid_feature_depths.size());
+    for (const auto &pair : valid_feature_depths) {
+      depths_only.push_back(pair.second);
+    }
+
+    std::sort(depths_only.begin(), depths_only.end());
+    double median_depth = depths_only[depths_only.size() / 2];
+
+    PRINT_INFO("[OUTLIER REJ]: Median depth = %.2f meters (from %zu features)\n", 
+               median_depth, valid_feature_depths.size());
+
+    // Check each valid feature against median
+    // Remove features with depth significantly different from median
+    for (const auto &pair : valid_feature_depths) {
+      size_t idx = pair.first;
+      double depth = pair.second;
+
+      // Rejection condition: depth outside [median/3, median*3]
+      if (depth > median_depth * DEPTH_MEDIAN_RATIO || depth < median_depth / DEPTH_MEDIAN_RATIO) {
+        indexes_to_remove.insert(idx);
+        stage2_rejected++;
+      }
+    }
+
+    PRINT_INFO("[OUTLIER REJ]: Stage 2 rejected %d features (spatial consistency)\n", stage2_rejected);
+  }
+
+  // ---------------------------------------------------------
+  // Mark features for deletion and remove from vector
+  // ---------------------------------------------------------
+  int removed_count = 0;
+  int total_before = features.size();
+
+  // Mark features as to_delete
+  for (size_t idx : indexes_to_remove) {
+    if (idx < features.size()) {
+      features[idx]->to_delete = true;
+      removed_count++;
+    }
+  }
+
+  // Remove marked features from vector
+  auto it = features.begin();
+  while (it != features.end()) {
+    if ((*it)->to_delete) {
+      it = features.erase(it);
+    } else {
+      it++;
+    }
+  }
+
+  PRINT_INFO("[OUTLIER REJ]: Total removed %d out of %d features (Stage 1: %d, Stage 2: %d)\n",
+              removed_count, total_before, stage1_rejected, stage2_rejected);
 }

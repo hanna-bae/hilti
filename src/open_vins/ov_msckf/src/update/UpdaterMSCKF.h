@@ -76,6 +76,18 @@ protected:
 
   /// Chi squared 95th percentile table (lookup would be size of residual)
   std::map<int, double> chi_squared_table;
+
+  /**
+   * @brief Additional outlier rejection based on IMU consistency and spatial depth
+   * 
+   * This function performs two-stage outlier rejection:
+   * Stage 1: Reprojection error check (IMU consistency)
+   * Stage 2: Spatial depth consistency check (median filter)
+   * 
+   * @param state Current state of the filter
+   * @param features Features to check (will be modified by removing outliers)
+   */
+  void apply_outlier_rejection_idea2(std::shared_ptr<State> state, std::vector<std::shared_ptr<ov_core::Feature>> &features);
 };
 
 } // namespace ov_msckf

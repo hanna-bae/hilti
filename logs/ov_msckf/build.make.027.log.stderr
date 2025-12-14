@@ -1,0 +1,7 @@
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/update/UpdaterMSCKF.cpp:[m[K In member function ‘[01m[Kvoid ov_msckf::UpdaterMSCKF::apply_outlier_rejection_idea2(std::shared_ptr<ov_msckf::State>, std::vector<std::shared_ptr<ov_core::Feature> >&)[m[K’:
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/update/UpdaterMSCKF.cpp:318:19:[m[K [01;35m[Kwarning: [m[Kvariable ‘[01m[Kp_IinG[m[K’ set but not used [[01;35m[K-Wunused-but-set-variable[m[K]
+   Eigen::Vector3d [01;35m[Kp_IinG[m[K = state->_imu->pos();
+                   [01;35m[K^~~~~~[m[K
+[01m[K/root/workspace/src/open_vins/ov_msckf/src/update/UpdaterMSCKF.cpp:319:31:[m[K [01;35m[Kwarning: [m[Kvariable ‘[01m[KR_GtoI[m[K’ set but not used [[01;35m[K-Wunused-but-set-variable[m[K]
+   Eigen::Matrix<double, 3, 3> [01;35m[KR_GtoI[m[K = quat_2_Rot(state->_imu->quat());
+                               [01;35m[K^~~~~~[m[K
